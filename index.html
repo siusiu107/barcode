@@ -1,25 +1,27 @@
 <!DOCTYPE html><html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>효도쿠폰 스캐너</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 20px; }
-    #scanner-container { position: relative; width: 100%; max-width: 400px; margin: 0 auto; }
-    #scanner { width: 100%; height: auto; border: 2px solid #333; border-radius: 8px; }
+    body { font-family: sans-serif; text-align: center; padding: 20px; margin: 0; }
+    #scanner-container { display: none; position: relative; width: 100%; max-width: 400px; margin: 20px auto; }
+    #scanner { width: 100%; height: auto; border-radius: 8px; }
     #couponInfo { margin-top: 20px; }
-    .coupon { display: inline-block; border: 2px solid #333; border-radius: 10px; padding: 20px; text-align: left; width: 300px; }
+    .coupon { display: inline-block; border: 2px solid #333; border-radius: 10px; padding: 20px; text-align: left; width: 90%; max-width: 300px; }
     .coupon h2 { margin-top: 0; }
-    button { padding: 10px 20px; font-size: 16px; margin-top: 10px; }
+    button { padding: 12px 24px; font-size: 16px; margin: 10px 0; }
     .used, .expired { opacity: 0.5; }
   </style>
 </head>
 <body>
   <h1>효도쿠폰 스캐너</h1>
+  <button id="startBtn">바코드 스캔 시작</button>
   <div id="scanner-container">
-    <video id="scanner" autoplay muted></video>
+    <video id="scanner" autoplay muted playsinline></video>
     <p>쿠폰 바코드를 화면에 비춰주세요.</p>
-    <button onclick="stopScanner()">취소</button>
+    <button id="cancelBtn">스캔 취소</button>
   </div>
   <div id="couponInfo"></div>  <script>
     const expiryDate = new Date('2025-05-31');
@@ -30,76 +32,72 @@
     ];
     coupons.forEach(c => c.used = localStorage.getItem('coupon_used_' + c.id) === 'true');
 
-    // 스캐너 시작
-    function startScanner() {
+    let cameraStream;
+    function initScanner() {
+      // 사용자 제스처에 의해 권한 요청 트리거
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
         .then(stream => {
-          document.getElementById('scanner').srcObject = stream;
+          cameraStream = stream;
+          const videoEl = document.getElementById('scanner');
+          videoEl.srcObject = stream;
+          document.getElementById('startBtn').style.display = 'none';
+          document.getElementById('scanner-container').style.display = 'block';
           Quagga.init({
-            inputStream: { type: 'LiveStream', constraints: { facingMode: 'environment' }, target: document.getElementById('scanner') },
+            inputStream: { name: 'Live', type: 'LiveStream', target: videoEl, constraints: { facingMode: 'environment' } },
             decoder: { readers: ['code_128_reader'] }
-          }, err => {
-            if (err) { console.error(err); return; }
-            Quagga.start();
-          });
+          }, err => { if (!err) Quagga.start(); });
           Quagga.onDetected(onDetected);
         })
-        .catch(err => { alert('카메라 권한이 필요합니다.'); });
+        .catch(err => console.error('getUserMedia error:', err));
     }
 
     function stopScanner() {
       Quagga.stop();
-      const video = document.getElementById('scanner');
-      if (video.srcObject) {
-        video.srcObject.getTracks().forEach(t => t.stop());
-        video.srcObject = null;
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(t => t.stop());
+        cameraStream = null;
       }
       document.getElementById('scanner-container').style.display = 'none';
+      document.getElementById('startBtn').style.display = 'inline-block';
     }
 
-    // 바코드 인식 시
     function onDetected(result) {
-      const code = result.codeResult.code;
       stopScanner();
+      const code = result.codeResult.code;
       showCoupon(code);
     }
 
-    // 쿠폰 정보 표시
     function showCoupon(code) {
       const info = document.getElementById('couponInfo');
       const coupon = coupons.find(c => c.id === code);
       const today = new Date();
       if (!coupon) {
-        info.innerHTML = `<p>유효하지 않은 쿠폰 코드입니다: ${code}</p>`;
+        info.innerHTML = `<p>유효하지 않은 쿠폰 코드: ${code}</p>`;
         return;
       }
       const expired = today > expiryDate;
       const isUsed = coupon.used;
       const statusText = isUsed ? '이미 사용됨' : expired ? '만료됨' : '사용 가능';
-      const disabled = (isUsed || expired) ? 'disabled' : '';
-
       info.innerHTML = `
         <div class="coupon ${isUsed? 'used':''} ${expired? 'expired':''}">
           <h2>${coupon.name}</h2>
           <p>유효기간: 2025년 05월 31일</p>
           <p>상태: <strong>${statusText}</strong></p>
-          <button ${disabled} onclick="useCoupon('${coupon.id}')">사용하기</button>
+          <button ${isUsed||expired? 'disabled':''} onclick="useCoupon('${coupon.id}')">사용하기</button>
         </div>
       `;
     }
 
     function useCoupon(id) {
       const coupon = coupons.find(c => c.id === id);
-      if (!coupon.used && new Date() <= expiryDate) {
+      if (coupon && !coupon.used && new Date() <= expiryDate) {
         coupon.used = true;
         localStorage.setItem('coupon_used_' + id, 'true');
         showCoupon(id);
       }
     }
 
-    // 페이지 로드 시 자동 시작
-    window.addEventListener('DOMContentLoaded', () => {
-      startScanner();
-    });
+    document.getElementById('startBtn').addEventListener('click', initScanner);
+    document.getElementById('cancelBtn').addEventListener('click', stopScanner);
   </script></body>
 </html>

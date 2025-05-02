@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="ko">
+<!DOCTYPE html><html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -19,9 +18,12 @@
       max-width: 400px;
       margin: 20px auto;
     }
+    /* 바코드 비율에 맞게 영상 화면 비율 설정 (3:1) */
     #scanner {
       width: 100%;
+      aspect-ratio: 3 / 1;
       height: auto;
+      object-fit: cover;
       border-radius: 8px;
     }
     #couponInfo {
@@ -50,22 +52,15 @@
   </style>
 </head>
 <body>
-  <h1>효도쿠폰 스캐너</h1>
+  <h1>효도쿠폰 스캐너</h1>  <!-- 효과음 --><audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
 
-  <!-- 효과음 -->
-  <audio id="beep-sound" src="beep.mp3" preload="auto"></audio>
-
-  <button id="startBtn">바코드 스캔 시작</button>
+<button id="startBtn">바코드 스캔 시작</button>
 
   <div id="scanner-container">
     <video id="scanner" autoplay muted playsinline></video>
     <p>쿠폰 바코드를 화면에 비춰주세요.</p>
     <button id="cancelBtn">스캔 취소</button>
-  </div>
-
-  <div id="couponInfo"></div>
-
-  <script>
+  </div>  <div id="couponInfo"></div>  <script>
     const expiryDate = new Date('2025-05-31');
     const coupons = [
       { id: '001', name: '방청소 쿠폰' },
@@ -154,6 +149,5 @@
 
     document.getElementById('startBtn').addEventListener('click', initScanner);
     document.getElementById('cancelBtn').addEventListener('click', stopScanner);
-  </script>
-</body>
+  </script></body>
 </html>
